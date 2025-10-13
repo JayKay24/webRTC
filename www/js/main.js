@@ -9,6 +9,21 @@
 'use strict';
 
 /**
+ * Classes
+ */
+class VideoFX {
+  constructor() {
+    this.filters = ['grayscale', 'sepia', 'noir', 'psychedelic', 'none'];
+  }
+
+  cycleFilter() {
+    const filter = this.filters.shift();
+    this.filters.push(filter);
+    return filter;
+  }
+}
+
+/**
  *  Global Variables: $self and $peer
  */
 const $self = {
@@ -49,11 +64,14 @@ document.querySelector('#header h1')
 document.querySelector('#call-button')
   .addEventListener('click', handleCallButton);
 
+document.querySelector('#self')
+  .addEventListener('click', handleSelfVideo);
+
 /**
  *  User-Media Setup
  */
 requestUserMedia($self.mediaConstraints);
-
+$self.filters = new VideoFX();
 
 /**
  *  User-Interface Functions and Callbacks
@@ -80,6 +98,16 @@ function joinCall() {
 function leaveCall() {
   sc.close();
   resetPeer($peer);
+}
+
+function handleSelfVideo(event) {
+  if ($peer.connection.connectionState !== 'connected') return;
+  const filter = `filter-${$self.filters.cycleFilter()}`;
+  const fdc = $peer.connection.createDataChannel(filter);
+  fdc.onclose = function() {
+    console.log(`Remote peer has closed the ${filter} data channel`);
+  };
+  event.target.className = filter;
 }
 
 /**
@@ -123,6 +151,8 @@ function resetPeer(peer) {
  *  WebRTC Functions and Callbacks
  */
 function registerRtcCallbacks(peer) {
+  peer.connection.onconnectionstatechange = handleRtcConnectionStateChange;
+  peer.connection.ondatachannel = handleRtcDataChannel;
   peer.connection.onnegotiationneeded = handleRtcConnectionNegotiation;
   peer.connection.onicecandidate = handleRtcIceCandidate;
   peer.connection.ontrack = handleRtcPeerTrack;
@@ -131,6 +161,25 @@ function registerRtcCallbacks(peer) {
 function handleRtcPeerTrack({ track, streams: [stream] }) {
   console.log('Attempt to display media from peer...');
   displayStream(stream, '#peer');
+}
+
+function handleRtcConnectionStateChange() {
+  const connectionState = $peer.connection.connectionState;
+  console.log(`The connection state is now ${connectionState}`);
+  document.querySelector('body').className = connectionState;
+}
+
+function handleRtcDataChannel({ channel }) {
+  const label = channel.label;
+  console.log(`Data channel added for ${label}`);
+  if (label.startsWith('filter-')) {
+    document.querySelector('#peer').className = label;
+    channel.onopen = function() {
+      channel.close();
+    };
+  } else {
+    console.log(`Opened ${channel.label} channel with an ID of ${channel.id}`)
+  }
 }
 
 
