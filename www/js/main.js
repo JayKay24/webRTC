@@ -11,7 +11,18 @@
 /**
  *  Global Variables: $self and $peer
  */
+const $self = {
+  rtcConfig: null,
+  isPolite: false,
+  isMakingOffer: false,
+  isIgnoringOffer: false,
+  isSettingRemoteAnswerPending: false,
+  mediaConstraints: { audio: false, video: true },
+};
 
+const $peer = {
+  connection: new RTCPeerConnection($self.rtcConfig),
+};
 
 /**
  *  Signaling-Channel Setup
@@ -41,7 +52,7 @@ document.querySelector('#call-button')
 /**
  *  User-Media Setup
  */
-
+requestUserMedia($self.mediaConstraints);
 
 
 /**
@@ -73,19 +84,47 @@ function leaveCall() {
 /**
  *  User-Media Functions
  */
+async function requestUserMedia(media_constraints) {
+  $self.mediaStream = new MediaStream();
+  $self.media = await navigator.mediaDevices
+    .getUserMedia(media_constraints);
+  $self.mediaStream.addTrack($self.media.getTracks()[0]);
+  displayStream($self.mediaStream, '#self');
+}
 
+function displayStream(stream, selector) {
+  document.querySelector(selector).srcObject = stream;
+}
 
+function addStreamingMedia(stream, peer) {
+  if (stream) {
+    for (let track of stream.getTracks()) {
+      peer.connection.addTrack(track, stream);
+    }
+  }
+}
 
 /**
  *  Call Features & Reset Functions
  */
-
+function establishCallFeatures(peer) {
+  registerRtcCallbacks(peer);
+  addStreamingMedia($self.mediaStream, peer);
+}
 
 
 /**
  *  WebRTC Functions and Callbacks
  */
+function registerRtcCallbacks(peer) {
+  peer.connection.onnegotiationneeded = handleRtcConnectionNegotiation;
+  peer.connection.onicecandidate = handleRtcIceCandidate;
+  peer.connection.ontrack = handleRtcPeerTrack;
+}
 
+function handleRtcPeerTrack() {
+  // TODO: Handle peer media tracks
+}
 
 
 /**
@@ -99,7 +138,18 @@ function leaveCall() {
 /**
  *  Reusable WebRTC Functions and Callbacks
  */
+async function handleRtcConnectionNegotiation() {
+  $self.isMakingOffer = true;
+  console.log('Attempting to make an offer...');
+  await $peer.connection.setLocalDescription();
+  sc.emit('signal', { description: $peer.connection.localDescription });
+  $self.isMakingOffer = false;
+}
 
+async function handleRtcIceCandidate({ candidate }) {
+  console.log('Attempting to handle an ICE candidate...');
+  sc.emit('signal', { candidate });
+}
 
 
 /**
@@ -113,10 +163,13 @@ function registerScCallbacks() {
 }
 
 function handleScConnect() {
-  console.log('Successfully connected to the signalling server!')
+  console.log('Successfully connected to the signalling server!');
+  establishCallFeatures($peer);
 }
 
-function handleScConnectedPeer() {}
+function handleScConnectedPeer() {
+  $self.isPolite = true;
+}
 
 function handleScDisconnectedPeer() {}
 
