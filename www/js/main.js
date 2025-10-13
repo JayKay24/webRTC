@@ -79,6 +79,7 @@ function joinCall() {
 
 function leaveCall() {
   sc.close();
+  resetPeer($peer);
 }
 
 /**
@@ -112,6 +113,11 @@ function establishCallFeatures(peer) {
   addStreamingMedia($self.mediaStream, peer);
 }
 
+function resetPeer(peer) {
+  displayStream(null, '#peer');
+  peer.connection.close();
+  peer.connection = new RTCPeerConnection($self.rtcConfig);
+}
 
 /**
  *  WebRTC Functions and Callbacks
@@ -122,8 +128,9 @@ function registerRtcCallbacks(peer) {
   peer.connection.ontrack = handleRtcPeerTrack;
 }
 
-function handleRtcPeerTrack() {
-  // TODO: Handle peer media tracks
+function handleRtcPeerTrack({ track, streams: [stream] }) {
+  console.log('Attempt to display media from peer...');
+  displayStream(stream, '#peer');
 }
 
 
@@ -171,9 +178,42 @@ function handleScConnectedPeer() {
   $self.isPolite = true;
 }
 
-function handleScDisconnectedPeer() {}
+function handleScDisconnectedPeer() {
+  resetPeer($peer);
+  establishCallFeatures($peer);
+}
 
-function handleScSignal() {}
+async function handleScSignal({ description, candidate }) {
+  if (description) {
+    const readyForOffer = !$self.isMakingOffer && 
+      ($peer.connection.signalingState === 'stable' ||
+        $self.isSettingRemoteAnswerPending
+      );
+    const offerCollision = description.type === 'offer' && !readyForOffer;
+    $self.isIgnoringOffer = !$self.isPolite && offerCollision;
+
+    if ($self.isIgnoringOffer) return;
+
+    $self.isSettingRemoteAnswerPending = description.type === 'answer';
+    await $peer.connection.setRemoteDescription(description);
+    $self.isSettingRemoteAnswerPending = false;
+
+    if (description.type === 'offer') {
+      await $peer.connection.setLocalDescription();
+      sc.emit('signal', { description: $peer.connection.localDescription });
+    }
+  } else if (candidate) {
+    try {
+      await $peer.connection.addIceCandidate(candidate);
+    } catch (e) {
+      // Log error unless $self is ignoring offers
+      // and candidate is not an empty string
+      if (!$self.isIgnoringOffer && candidate.candidate.length > 1) {
+        console.error('Unable to add ICE candidate for peer: ', e);
+      }
+    }
+  }
+}
 
 
 /**
