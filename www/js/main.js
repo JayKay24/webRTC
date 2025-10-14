@@ -78,6 +78,12 @@ document.querySelector('#self')
 document.querySelector('#chat-form')
   .addEventListener('submit', handleMessageForm);
 
+document.querySelector('#toggle-mic')
+  .setAttribute('aria-checked', $self.features.audio);
+
+document.querySelector('#footer')
+  .addEventListener('click', handleMediaButtons);
+
 /**
  *  User-Media Setup
  */
@@ -88,6 +94,46 @@ $self.messageQueue = [];
 /**
  *  User-Interface Functions and Callbacks
  */
+function handleMediaButtons(event) {
+  const target = event.target;
+  if (target.tagName !== 'BUTTON') return;
+  switch (target.id) {
+    case 'toggle-mic':
+      toggleMic(target);
+      break;
+    case 'toggle-cam':
+      toggleCam(target);
+      break;
+    default:
+      break;
+  } 
+}
+
+function toggleMic(button) {
+  const audio = $self.mediaTracks.audio;
+  const enabledState = audio.enabled = !audio.enabled;
+
+  $self.features.audio = enabledState;
+
+  button.setAttribute('aria-checked', enabledState);
+}
+
+function toggleCam(button) {
+  const video = $self.mediaTracks.video;
+  const enabledState = video.enabled = !video.enabled;
+
+  $self.features.video = enabledState;
+
+  button.setAttribute('aria-checked', enabledState);
+
+  if (enabledState) {
+    $self.mediaStream.addTrack($self.mediaTracks.video);
+  } else {
+    $self.mediaStream.removeTrack($self.mediaTracks.video);
+    displayStream($self.mediaStream, '#self');
+  }
+}
+
 function handleCallButton(event) {
   const callButton = event.target;
   if (callButton.className === 'join') {

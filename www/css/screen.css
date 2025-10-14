@@ -25,7 +25,7 @@ html {
    height: 100vh;
    display: grid;
    grid-gap: 11px;
-   grid-template-rows: auto auto 1fr;
+   grid-template-rows: auto auto 1fr auto;
 }
 
 #header > h1 {
@@ -103,6 +103,11 @@ html {
    outline: 0;
 }
 
+#footer {
+   display: flex;
+   column-gap: 11px;
+}
+
 /* Controls */
 button {
    font-family: inherit;
@@ -132,6 +137,16 @@ button {
    margin-right: 11px;
 }
 
+*[aria-hidden="true"] {
+   visibility: hidden;
+}
+
+button[aria-checked="false"] {
+   text-decoration: line-through;
+   color: white;
+   background: red;
+}
+
 /* Video Elements */
 video {
    background-color: #ddd;
@@ -159,6 +174,10 @@ video {
    cursor: pointer;
 }
 
+#mic-status {
+   padding: 11px;
+}
+
 
 /* Media Queries */
 @media screen and (min-width: 500px) {
@@ -181,11 +200,20 @@ video {
 @media screen and (min-width: 680px) {
    #interface {
       grid-template-columns: 1fr 1fr;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto 1fr auto;
    }
 
    #header {
       grid-column: 1 / 3;
+   }
+
+   #chat {
+      grid-column: 2 / 3;
+      grid-row: 2 / 4;
+   }
+
+   #footer {
+      grid-column: 1 / 2;
    }
 }
 
