@@ -67,11 +67,15 @@ document.querySelector('#call-button')
 document.querySelector('#self')
   .addEventListener('click', handleSelfVideo);
 
+document.querySelector('#chat-form')
+  .addEventListener('submit', handleMessageForm);
+
 /**
  *  User-Media Setup
  */
 requestUserMedia($self.mediaConstraints);
 $self.filters = new VideoFX();
+$self.messageQueue = [];
 
 /**
  *  User-Interface Functions and Callbacks
@@ -110,6 +114,55 @@ function handleSelfVideo(event) {
   event.target.className = filter;
 }
 
+function appendMessage(sender, log_element, message) {
+  const log = document.querySelector(log_element);
+  const li = document.createElement('li');
+  li.className = sender;
+  li.innerText = message;
+  log.appendChild(li);
+  if (log.scrollTo) {
+    log.scrollTo({
+      top: log.scrollHeight,
+      behavior: 'smooth'
+    });
+  } else {
+    log.scrollTop = log.scrollHeight;
+  }
+}
+
+function handleMessageForm(event) {
+  event.preventDefault();
+  const input = document.querySelector('#chat-msg');
+  const message = input.value;
+  if (message === '') return;
+
+  appendMessage('self', '#chat-log', message);
+  sendOrQueueMessage($peer, message);
+  input.value = '';
+}
+
+function queueMessage(message, push = true) {
+  if (push) {
+    $self.messageQueue.push(message); // queue at the end
+  } else {
+    $self.messageQueue.unshift(message); // queue at the start
+  }
+}
+
+function sendOrQueueMessage(peer, message, push = true) {
+  const chatChannel = peer.chatChannel;
+  if (!chatChannel || chatChannel.readyState !== 'open') {
+    queueMessage(message, push);
+    return;
+  }
+  try {
+    chatChannel.send(message);
+  } catch (e) {
+    console.error('Error sending message:', e);
+    queueMessage(message, push);
+  }
+}
+
 /**
  *  User-Media Functions
  */
@@ -134,10 +187,34 @@ function addStreamingMedia(stream, peer) {
 }
 
 /**
+ * User-Media & Data-Channel Functions
+ */
+function addChatChannel(peer) {
+  peer.chatChannel = peer.connection.createDataChannel('text chat', { negotiated: true, id: 100 });
+  peer.chatChannel.onmessage = function(event) {
+    appendMessage('peer', '#chat-log', event.data);
+  }
+  peer.chatChannel.onclose = function() {
+    console.log('Chat channel closed.');
+  }
+  peer.chatChannel.onopen = function() {
+    console.log('Chat channel opened');
+    while ($self.messageQueue.length > 0 && $peer.chatChannel.readyState === 'open') {
+      console.log('Attempting to send a message from the queue...');
+      // get the message at the front of the queue
+      let message = $self.messageQueue.shift();
+      sendOrQueueMessage(peer, message, false);
+    }
+  };
+}
+
+
+/**
  *  Call Features & Reset Functions
  */
 function establishCallFeatures(peer) {
   registerRtcCallbacks(peer);
+  addChatChannel(peer);
   addStreamingMedia($self.mediaStream, peer);
 }
 
