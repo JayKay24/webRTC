@@ -118,7 +118,8 @@ function appendMessage(sender, log_element, message) {
   const log = document.querySelector(log_element);
   const li = document.createElement('li');
   li.className = sender;
-  li.innerText = message;
+  li.innerText = message.text;
+  li.dataset.timestamp = message.timestamp;
   log.appendChild(li);
   if (log.scrollTo) {
     log.scrollTo({
@@ -133,8 +134,10 @@ function appendMessage(sender, log_element, message) {
 function handleMessageForm(event) {
   event.preventDefault();
   const input = document.querySelector('#chat-msg');
-  const message = input.value;
-  if (message === '') return;
+  const message = {};
+  message.text = input.value
+  message.timestamp = Date.now();
+  if (message.text === '') return;
 
   appendMessage('self', '#chat-log', message);
   sendOrQueueMessage($peer, message);
@@ -156,7 +159,7 @@ function sendOrQueueMessage(peer, message, push = true) {
     return;
   }
   try {
-    chatChannel.send(message);
+    chatChannel.send(JSON.stringify(message));
   } catch (e) {
     console.error('Error sending message:', e);
     queueMessage(message, push);
@@ -192,7 +195,20 @@ function addStreamingMedia(stream, peer) {
 function addChatChannel(peer) {
   peer.chatChannel = peer.connection.createDataChannel('text chat', { negotiated: true, id: 100 });
   peer.chatChannel.onmessage = function(event) {
-    appendMessage('peer', '#chat-log', event.data);
+    const message = JSON.parse(event.data);
+    if (!message.id) {
+      // prepare a response and append an incoming message
+      const response = {
+        id: message.timestamp,
+        timestamp: Date.now()
+      };
+      sendOrQueueMessage(peer, response);
+      appendMessage('peer', '#chat-log', message);
+    } else {
+      // Handle an incoming response
+      handleResponse(message);
+    }
+    
   }
   peer.chatChannel.onclose = function() {
     console.log('Chat channel closed.');
@@ -208,6 +224,14 @@ function addChatChannel(peer) {
   };
 }
 
+function handleResponse(response) {
+  const sent_item = document.querySelector(`#chat-log *[data-timestamp="${response.id}"]`);
+  const classes = ['received'];
+  if (response.timestamp - response.id > 1000) {
+    classes.push('delayed');
+  }
+  sent_item.classList.add(...classes);
+}
 
 /**
  *  Call Features & Reset Functions

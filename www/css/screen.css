@@ -63,6 +63,26 @@ html {
    clear: both;
 }
 
+#chat-log .peer {
+   background: #eee;
+   float: left;
+}
+
+#chat-log .self {
+   background: #009;
+   color: #eee;
+   float: right;
+   opacity: 0.3;
+}
+
+#chat-log .self.received {
+   opacity: 1;
+}
+
+#chat-log .self.received.delayed {
+   transition: opacity 0.4s;
+}
+
 #chat-form {
    flex-grow: 0;
    display: flex;
@@ -82,18 +102,6 @@ html {
    border: 2px solid #999;
    outline: 0;
 }
-
-#chat-log .peer {
-   background: #eee;
-   float: left;
-}
-
-#chat-log .self {
-   background: #009;
-   color: #eee;
-   float: right;
-}
-
 
 /* Controls */
 button {
