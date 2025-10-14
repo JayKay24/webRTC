@@ -32,11 +32,19 @@ const $self = {
   isMakingOffer: false,
   isIgnoringOffer: false,
   isSettingRemoteAnswerPending: false,
-  mediaConstraints: { audio: false, video: true },
+  mediaConstraints: { audio: true, video: true },
+  mediaStream: new MediaStream(),
+  mediaTracks: {},
+  features: {
+    audio: false,
+  },
 };
 
 const $peer = {
   connection: new RTCPeerConnection($self.rtcConfig),
+  mediaStream: new MediaStream(),
+  mediaTracks: {},
+  features: {},
 };
 
 /**
@@ -170,10 +178,20 @@ function sendOrQueueMessage(peer, message, push = true) {
  *  User-Media Functions
  */
 async function requestUserMedia(media_constraints) {
-  $self.mediaStream = new MediaStream();
   $self.media = await navigator.mediaDevices
     .getUserMedia(media_constraints);
-  $self.mediaStream.addTrack($self.media.getTracks()[0]);
+  
+  // Hold onto audio- & video-track references
+  $self.mediaTracks.audio = $self.media.getAudioTracks()[0];
+  $self.mediaTracks.video = $self.media.getVideoTracks()[0];
+
+  // Mute the audio if `$self.features.audio` evaluates to `false`
+  $self.mediaTracks.audio.enabled = !!$self.features.audio;
+
+  // Add audio & video tracks to mediaStream
+  $self.mediaStream.addTrack($self.mediaTracks.audio);
+  $self.mediaStream.addTrack($self.mediaTracks.video);
+
   displayStream($self.mediaStream, '#self');
 }
 
@@ -181,11 +199,10 @@ function displayStream(stream, selector) {
   document.querySelector(selector).srcObject = stream;
 }
 
-function addStreamingMedia(stream, peer) {
-  if (stream) {
-    for (let track of stream.getTracks()) {
-      peer.connection.addTrack(track, stream);
-    }
+function addStreamingMedia(peer) {
+  const tracksList = Object.keys($self.mediaTracks);
+  for(let track of tracksList) {
+    peer.connection.addTrack($self.mediaTracks[track]);
   }
 }
 
@@ -239,13 +256,16 @@ function handleResponse(response) {
 function establishCallFeatures(peer) {
   registerRtcCallbacks(peer);
   addChatChannel(peer);
-  addStreamingMedia($self.mediaStream, peer);
+  addStreamingMedia(peer);
 }
 
 function resetPeer(peer) {
   displayStream(null, '#peer');
   peer.connection.close();
   peer.connection = new RTCPeerConnection($self.rtcConfig);
+  peer.mediaStream = new MediaStream();
+  peer.mediaTracks = {};
+  peer.features = {};
 }
 
 /**
@@ -259,9 +279,11 @@ function registerRtcCallbacks(peer) {
   peer.connection.ontrack = handleRtcPeerTrack;
 }
 
-function handleRtcPeerTrack({ track, streams: [stream] }) {
-  console.log('Attempt to display media from peer...');
-  displayStream(stream, '#peer');
+function handleRtcPeerTrack({ track }) {
+  console.log(`Handle incoming ${track.kind} track...`);
+  $peer.mediaTracks[track.kind] = track;
+  $peer.mediaStream.addTrack(track);
+  displayStream($peer.mediaStream, '#peer');
 }
 
 function handleRtcConnectionStateChange() {
