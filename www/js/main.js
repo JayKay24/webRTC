@@ -116,6 +116,8 @@ function toggleMic(button) {
   $self.features.audio = enabledState;
 
   button.setAttribute('aria-checked', enabledState);
+
+  shareFeatures('audio');
 }
 
 function toggleCam(button) {
@@ -125,6 +127,8 @@ function toggleCam(button) {
   $self.features.video = enabledState;
 
   button.setAttribute('aria-checked', enabledState);
+
+  shareFeatures('video');
 
   if (enabledState) {
     $self.mediaStream.addTrack($self.mediaTracks.video);
@@ -255,6 +259,48 @@ function addStreamingMedia(peer) {
 /**
  * User-Media & Data-Channel Functions
  */
+function addFeaturesChannel(peer) {
+  const featureFunctions = {
+    audio: function() {
+      const status = document.querySelector('#videos #mic-status');
+      // reveal "Remote peer is muted" message if muted (aria-hidden=false)
+      // otherwise hide it (aria-hidden=true)
+      status.setAttribute('aria-hidden', peer.features.audio);
+    },
+    video: function() {
+      // This is all just to display the poster image,
+      // rather than a black frame
+      if (peer.mediaTracks.video) {
+        if (peer.features.video) {
+          peer.mediaStream.addTrack(peer.mediaTracks.video);
+        } else {
+          peer.mediaStream.removeTrack(peer.mediaTracks.video);
+          displayStream(peer.mediaStream, '#peer');
+        }
+      }
+    }
+  };
+
+  peer.featuresChannel = peer.connection.createDataChannel('features', { negotiated: true, id: 110 });
+  peer.featuresChannel.onopen = function() {
+    console.log('Features channel opened.');
+    // send features information just as soon as the channel opens
+    peer.featuresChannel.send(JSON.stringify($self.features));
+  };
+  peer.featuresChannel.onmessage = function(event) {
+    const features = JSON.parse(event.data);
+    const featuresList = Object.keys(features);
+    for (let f of featuresList) {
+      // update the corresponding features field on $peer
+      peer.features[f] = features[f];
+      // if there's a corresponding function, run it
+      if (typeof featureFunctions[f] === 'function') {
+        featureFunctions[f]();
+      }
+    }
+  }
+}
+
 function addChatChannel(peer) {
   peer.chatChannel = peer.connection.createDataChannel('text chat', { negotiated: true, id: 100 });
   peer.chatChannel.onmessage = function(event) {
@@ -301,6 +347,7 @@ function handleResponse(response) {
  */
 function establishCallFeatures(peer) {
   registerRtcCallbacks(peer);
+  addFeaturesChannel(peer);
   addChatChannel(peer);
   addStreamingMedia(peer);
 }
@@ -312,6 +359,26 @@ function resetPeer(peer) {
   peer.mediaStream = new MediaStream();
   peer.mediaTracks = {};
   peer.features = {};
+}
+
+function shareFeatures(...features) {
+  const featuresToShare = {};
+
+  // don't try to share features before joining the call or
+  // before the features channel is available
+  if (!$peer.featuresChannel) return;
+
+  for (let f of features) {
+    featuresToShare[f] = $self.features[f];
+  }
+
+  try {
+    $peer.featuresChannel.send(JSON.stringify(featuresToShare));
+  } catch (e) {
+    console.error('Error sending features:', e);
+    // No need to queue; contents of `$self.features` will send
+    // as soon as the features channel opens
+  }
 }
 
 /**
