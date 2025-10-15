@@ -84,6 +84,9 @@ document.querySelector('#toggle-mic')
 document.querySelector('#footer')
   .addEventListener('click', handleMediaButtons);
 
+document.querySelector('#chat-img-btn')
+  .addEventListener('click', handleImageButton);
+
 /**
  *  User-Media Setup
  */
@@ -94,6 +97,37 @@ $self.messageQueue = [];
 /**
  *  User-Interface Functions and Callbacks
  */
+function handleImageButton() {
+  let input = document.querySelector('input.temp');
+  input = input ? input : document.createElement('input');
+  input.className = 'temp';
+  input.type = 'file';
+  input.accept = '.gif, .jpg, .jpeg, .png';
+  input.setAttribute('aria-hidden', true);
+  // Safari/iOS require appending the file input to the DOM
+  document.querySelector('#chat-form').appendChild(input);
+  input.addEventListener('change', handleImageInput);
+  input.click();
+}
+
+function handleImageInput(event) {
+  event.preventDefault();
+  const image = event.target.files[0];
+  const metadata = {
+    kind: 'image',
+    name: image.name,
+    size: image.size,
+    timestamp: Date.now(),
+    type: image.type,
+  };
+  const payload = { metadata, file: image };
+  appendMessage('self', '#chat-log', metadata, image);
+  // Remove appended file input element
+  event.target.remove();
+  // Send or queue the file
+  sendOrQueueMessage($peer, payload);
+}
+
 function handleMediaButtons(event) {
   const target = event.target;
   if (target.tagName !== 'BUTTON') return;
@@ -172,20 +206,37 @@ function handleSelfVideo(event) {
   event.target.className = filter;
 }
 
-function appendMessage(sender, log_element, message) {
+function appendMessage(sender, log_element, message, image) {
   const log = document.querySelector(log_element);
   const li = document.createElement('li');
   li.className = sender;
   li.innerText = message.text;
   li.dataset.timestamp = message.timestamp;
+
+  if(image) {
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(image);
+    img.onload = function() {
+      URL.revokeObjectURL(this.src);
+      scrollToEnd(log);
+    };
+    li.innerText = ''; // undefined on images
+    li.classList.add('img');
+    li.appendChild(img);
+  }
+
   log.appendChild(li);
-  if (log.scrollTo) {
-    log.scrollTo({
-      top: log.scrollHeight,
+  scrollToEnd(log);
+}
+
+function scrollToEnd(el) {
+  if (el.scrollTo) {
+    el.scrollTo({
+      top: el.scrollHeight,
       behavior: 'smooth'
     });
   } else {
-    log.scrollTop = log.scrollHeight;
+    el.scrollTop = el.scrollHeight;
   }
 }
 
@@ -216,12 +267,73 @@ function sendOrQueueMessage(peer, message, push = true) {
     queueMessage(message, push);
     return;
   }
-  try {
-    chatChannel.send(JSON.stringify(message));
-  } catch (e) {
-    console.error('Error sending message:', e);
-    queueMessage(message, push);
+
+  if (message.file) {
+    sendFile(peer, message);
+  } else {
+    try {
+      chatChannel.send(JSON.stringify(message));
+    } catch (e) {
+      console.error('Error sending message:', e);
+      queueMessage(message, push);
+    }
   }
+}
+
+function sendFile(peer, payload) {
+  const { metadata, file } = payload;
+  const fileChannel = peer.connection.createDataChannel(`${metadata.kind}-${metadata.name}`);
+  const chunk = 16 * 1024; // 16KiB chunks
+  fileChannel.onopen = async function() {
+    if (!peer.features ||
+      ($self.features.binaryType !== peer.features.binaryType)) {
+        fileChannel.binaryType = 'arraybuffer';
+    }
+    // Prepare binary data according to the binaryType in use
+    const data = fileChannel.binaryType === 'blob' ? file : await file.arrayBuffer();
+    // send the metadata
+    fileChannel.send(JSON.stringify(metadata));
+    // send the prepared data in chunks
+    for (let i = 0; i < metadata.size; i += chunk) {
+      fileChannel.send(data.slice(i, i + chunk));
+    }
+  };
+  fileChannel.onmessage = function({ data }) {
+    // Sending side will only ever receive a response
+    handleResponse(JSON.parse(data));
+    fileChannel.close();
+  };
+}
+
+function receiveFile(fileChannel) {
+  const chunks = [];
+  let metadata;
+  let bytesReceived = 0;
+  fileChannel.onmessage = function({ data }) {
+    // Receive the metadata
+    if (typeof data === 'string' && data.startsWith('{')) {
+      metadata = JSON.parse(data);
+    } else {
+      // Receive & squirrel away chunks...
+      bytesReceived += data.size ? data.size : data.byteLength;
+      chunks.push(data);
+      // ...until the bytes received equals the file size
+      if (bytesReceived === metadata.size) {
+        const image = new Blob(chunks, { type: metadata.type });
+        const response = {
+          id: metadata.timestamp,
+          timestamp: Date.now(),
+        };
+        appendMessage('peer', '#chat-log', metadata, image);
+        // Send an acknowledgement
+        try {
+          fileChannel.send(JSON.stringify(response));
+        } catch (e) {
+          queueMessage(response);
+        }
+      }
+    }
+  };
 }
 
 /**
@@ -284,6 +396,7 @@ function addFeaturesChannel(peer) {
   peer.featuresChannel = peer.connection.createDataChannel('features', { negotiated: true, id: 110 });
   peer.featuresChannel.onopen = function() {
     console.log('Features channel opened.');
+    $self.features.binaryType = peer.featuresChannel.binaryType;
     // send features information just as soon as the channel opens
     peer.featuresChannel.send(JSON.stringify($self.features));
   };
@@ -413,8 +526,10 @@ function handleRtcDataChannel({ channel }) {
     channel.onopen = function() {
       channel.close();
     };
-  } else {
-    console.log(`Opened ${channel.label} channel with an ID of ${channel.id}`)
+  }
+
+  if (label.startsWith('image-')) {
+    receiveFile(channel);
   }
 }
 

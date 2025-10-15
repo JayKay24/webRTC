@@ -37,6 +37,91 @@ html {
    left: -20000px;
 }
 
+#footer {
+   display: flex;
+   column-gap: 11px;
+}
+
+/* Controls */
+button {
+   font-family: inherit;
+   font-size: inherit;
+   font-weight: inherit;
+   line-height: inherit;
+   cursor: pointer;
+   /* Box Styles */
+   display: block;
+   border: 0;
+   border-radius: 3px;
+   padding: 11px;
+}
+
+.join {
+   background-color: green;
+   color: white;
+}
+
+.leave {
+   background-color: #ca0;
+   color: black;
+}
+
+#call-button {
+   width: 143px;
+   margin-right: 11px;
+}
+
+*[aria-hidden="true"] {
+   visibility: hidden;
+}
+
+input[type="file"][aria-hidden="true"] {
+   display: none;
+}
+
+button[aria-checked="false"] {
+   text-decoration: line-through;
+   color: white;
+   background: red;
+}
+
+/* Video Elements */
+video {
+   background-color: #ddd;
+   display: block;
+   width: 100%;
+   aspect-ratio: 4 / 3;
+   object-fit: cover;
+   object-position: center;
+}
+
+#videos {
+   position: relative;
+}
+
+#self {
+   width: 30%;
+   position: absolute;
+   top: 11px;
+   left: 11px;
+   z-index: 1000; /* Prevent remote filters from hiding #self */
+   border: 1px solid #ccc;
+}
+
+.connected #self {
+   cursor: pointer;
+}
+
+#mic-status {
+   padding: 11px;
+}
+
+/* Chat Elements */
+img {
+   display: block;
+   max-width: 100%;
+}
+
 #chat {
    height: 100%;
    min-height: 220px; /* Accommodate small, squarish screens */
@@ -61,6 +146,11 @@ html {
    margin-bottom: 5.5px;
    max-width: 60%;
    clear: both;
+   overflow: hidden;
+}
+
+#chat-log .img {
+   padding: 0;
 }
 
 #chat-log .peer {
@@ -103,81 +193,11 @@ html {
    outline: 0;
 }
 
-#footer {
-   display: flex;
-   column-gap: 11px;
+#chat-img-btn {
+   background: #eee;
+   color: #000;
+   margin-right: 5.5px;
 }
-
-/* Controls */
-button {
-   font-family: inherit;
-   font-size: inherit;
-   font-weight: inherit;
-   line-height: inherit;
-   cursor: pointer;
-   /* Box Styles */
-   display: block;
-   border: 0;
-   border-radius: 3px;
-   padding: 11px;
-}
-
-.join {
-   background-color: green;
-   color: white;
-}
-
-.leave {
-   background-color: #ca0;
-   color: black;
-}
-
-#call-button {
-   width: 143px;
-   margin-right: 11px;
-}
-
-*[aria-hidden="true"] {
-   visibility: hidden;
-}
-
-button[aria-checked="false"] {
-   text-decoration: line-through;
-   color: white;
-   background: red;
-}
-
-/* Video Elements */
-video {
-   background-color: #ddd;
-   display: block;
-   width: 100%;
-   aspect-ratio: 4 / 3;
-   object-fit: cover;
-   object-position: center;
-}
-
-#videos {
-   position: relative;
-}
-
-#self {
-   width: 30%;
-   position: absolute;
-   top: 11px;
-   left: 11px;
-   z-index: 1000; /* Prevent remote filters from hiding #self */
-   border: 1px solid #ccc;
-}
-
-.connected #self {
-   cursor: pointer;
-}
-
-#mic-status {
-   padding: 11px;
-}
-
 
 /* Media Queries */
 @media screen and (min-width: 500px) {
