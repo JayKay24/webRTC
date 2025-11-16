@@ -24,6 +24,7 @@
     "test:nw:ff": "npx nightwatch -c scripts/conf/nightwatch.conf.js --fail-fast -e firefoxActive,firefoxPassive"
   },
   "dependencies": {
+    "debug": "^4.4.3",
     "express": "^4.18.3",
     "http-errors": "^2.0",
     "morgan": "^1.10",
