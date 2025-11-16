@@ -10,7 +10,7 @@ Fire up Docker and run the following commands:
 ```
 $ git clone https://github.com/JayKay24/webRTC.git
 $ cd webRTC
-$ docker build -t <YOUR_USERNAME>:<ANY_IMAGE_NAME_YOU_WISH>:1.0.0
+$ docker build -t <YOUR_USERNAME>:<ANY_IMAGE_NAME_YOU_WISH>:1.0.0 .
 ```
 
 e.g YOUR_USERNAME=jay, ANY_IMAGE_NAME_YOU_WISH=webrtc
