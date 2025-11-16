@@ -16,7 +16,7 @@ $ docker build -t <YOUR_USERNAME>:<ANY_IMAGE_NAME_YOU_WISH>:1.0.0 .
 e.g YOUR_USERNAME=jay, ANY_IMAGE_NAME_YOU_WISH=webrtc
 
 ## Instructions
-To run it locally, you will first need to know the IP address assigned to your device/host. e.g on Mac see:
+To run it locally, you will first need to know the IP address assigned to your device/host. e.g on Mac, got to Settings->Network. See:
 ![IP Address](/docs/ip_address.png)
 
 Run the following:
@@ -26,10 +26,12 @@ $ docker run -it --name webrtc -p 3000:3000 <YOUR_USERNAME>:<ANY_IMAGE_NAME_YOU_
 
 Type the following to your browser search bar:
 ```
-https://<YOUR_IP_ADDRESS>:3000
+https://<YOUR_IP_ADDRESS>:3000/#<NAMESPACE>
 ```
 
-Use this same URL on your other device e.g phone to connect to the video chat peer.
+The `NAMESPACE` will be shown on the UI as a 7 digit number preceded with `#`.
+
+Use this same URL on your other device e.g phone to connect to the video chat peer. Use the same namespace shown on the host device as a URL fragment.
 
 You should see an interface similar to:
 ![webRTC app](/docs/p2p_video_chat.png)
