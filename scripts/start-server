@@ -10,8 +10,8 @@
  *  export LOCALHOST_SSL_KEY="$HOME/path/to/your/key.pem"
  *
  */
-const key_path = process.env.LOCALHOST_SSL_KEY;
-const cert_path = process.env.LOCALHOST_SSL_CERT;
+const key_path = process.env.LOCALHOST_SSL_KEY ?? '';
+const cert_path = process.env.LOCALHOST_SSL_CERT ?? '';
 
 const {app, io, public_dir} = require('../server');
 const debug = require('debug')(process.env.DEBUG);

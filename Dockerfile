@@ -14,16 +14,18 @@ RUN npm ci --only=production
 COPY . .
 
 # Install openssl, create certs directory, and generate self-signed certificates
-RUN apt-get update && apt-get install -y openssl
-RUN mkdir certs
-RUN npm run ssl-keys --keydir="certs" --numdays=365
+# RUN apt-get update && apt-get install -y openssl
+# RUN mkdir certs
+# RUN npm run ssl-keys --keydir="certs" --numdays=365
 
 # Expose port 3000
 EXPOSE 3000
 
-# Set environment variables for the runtime
-ENV LOCALHOST_SSL_KEY="certs/localhost.key"
-ENV LOCALHOST_SSL_CERT="certs/localhost.crt"
+# # Set environment variables for the runtime
+# ENV LOCALHOST_SSL_KEY="certs/localhost.key"
+# ENV LOCALHOST_SSL_CERT="certs/localhost.crt"
+ENV PUBLIC=www
+ENV DEBUG="signaling-server"
 
 # Use node directly to start the app to handle signals correctly
-CMD [ "npm", "start" ]
+ENTRYPOINT [ "npm", "start" ]
